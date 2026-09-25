@@ -9,6 +9,7 @@ npm install
 npm run dev        # open the printed URL in Chrome/Edge (Web MIDI)
 npm run build      # static site in dist/
 npm run render     # offline render of every preset to out/*.wav, no browser needed
+npm run check      # headless Chrome: boots the worklet, plays, screenshots the four views and the browser
 ```
 
 Play with a MIDI keyboard (notes, velocity, pitch bend, mod wheel = vibrato,
@@ -117,6 +118,18 @@ fraction of a semitone) for *Cassette Loop*'s tape wobble.
 `node scripts/render.ts onset` measures note-on to −20 dB for every preset.
 Everything meant to be played sits at 2–5 ms; the only slow ones are the pads
 and textures whose attack is slow on purpose.
+
+## UI
+
+Bioluminescence on a dark forest floor: the background is a living
+mycelium network that lights up from the notes, panels are chamfered glass
+with an accent per family (lime for the oscillators, cyan for the filter,
+amber for the envelopes, magenta for the LFOs and matrix), Rajdhani and
+JetBrains Mono. Four views (`1`–`4`): **voice**, **motion**, **space** and
+**living**; the four living layers fold to one line while they are off
+(click the header to open one). The preset browser (`` ` ``) is shared with
+Siege and Vector, as are the knobs and the keyboard, which reads its colours
+from `--key-*` custom properties.
 
 ## Porting to a plugin (JUCE)
 

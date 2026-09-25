@@ -206,14 +206,13 @@ export class Picker implements Control {
 }
 
 /**
- * Enums up to this many choices keep the segmented row; longer ones get a
- * dropdown. Only the matrix's sources and destinations are longer.
+ * Enums keep the segmented row unless they have more than `segLimit`
+ * choices, in which case they get a dropdown. The default keeps every enum a
+ * row (Siege's bodies, Vector's chords); Mycelia passes 8 for its matrix.
  */
-const SEG_LIMIT = 8;
-
-export function makeControl(def: ParamDef, value: number, onChange: (v: number) => void): Control {
+export function makeControl(def: ParamDef, value: number, onChange: (v: number) => void, segLimit = Infinity): Control {
   if (def.scale === 'enum') {
-    return (def.labels?.length ?? 0) > SEG_LIMIT
+    return (def.labels?.length ?? 0) > segLimit
       ? new Picker(def, value, onChange)
       : new Selector(def, value, onChange);
   }

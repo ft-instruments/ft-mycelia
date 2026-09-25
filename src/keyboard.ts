@@ -1,5 +1,8 @@
 // On-screen 5-octave keyboard (canvas) with mouse/touch input, plus a
-// computer-keyboard mapping. Pressed keys glow like something bioluminescent.
+// computer-keyboard mapping. Shared by the whole family: the look comes from
+// CSS custom properties on the canvas (--key-rgb, --key-alt-rgb,
+// --key-white-a, --key-white-b, --key-black, --mono), so each instrument
+// themes it without touching this file.
 
 export interface KeyboardHandler {
   noteOn(note: number, velocity: number): void;
@@ -125,6 +128,13 @@ export class KeyboardView {
 
   draw(): void {
     const ctx = this.ctx;
+    const css = getComputedStyle(this.canvas);
+    const v = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
+    const ph = v('--key-rgb', '120,255,200');        // white keys, labels
+    const mg = v('--key-alt-rgb', '255,90,220');     // black keys, sustain
+    const whiteA = v('--key-white-a', '#0c1a14'), whiteB = v('--key-white-b', '#16302a');
+    const black = v('--key-black', '#03080a');
+    const font = v('--mono', 'ui-monospace, monospace');
     const r = this.canvas.getBoundingClientRect();
     const W = r.width, H = r.height;
     const ww = W / this.whiteCount;
@@ -136,23 +146,23 @@ export class KeyboardView {
       const x = wi * ww;
       const g = this.glow.get(n) ?? 0;
       const grad = ctx.createLinearGradient(0, 0, 0, H);
-      grad.addColorStop(0, '#0c1a14');
-      grad.addColorStop(1, '#16302a');
+      grad.addColorStop(0, whiteA);
+      grad.addColorStop(1, whiteB);
       ctx.fillStyle = grad;
       ctx.fillRect(x + 1, 0, ww - 2, H);
       if (g > 0) {
-        ctx.fillStyle = `rgba(120, 255, 200, ${0.55 * g})`;
+        ctx.fillStyle = `rgba(${ph}, ${0.55 * g})`;
         ctx.fillRect(x + 1, 0, ww - 2, H);
-        ctx.shadowColor = 'rgba(120,255,200,0.9)'; ctx.shadowBlur = 24 * g;
-        ctx.fillStyle = `rgba(190, 255, 230, ${0.5 * g})`;
+        ctx.shadowColor = `rgba(${ph},0.9)`; ctx.shadowBlur = 24 * g;
+        ctx.fillStyle = `rgba(${ph}, ${0.7 * g})`;
         ctx.fillRect(x + 1, H - 10, ww - 2, 10);
         ctx.shadowBlur = 0;
       }
-      ctx.fillStyle = 'rgba(140,255,200,0.16)';
+      ctx.fillStyle = `rgba(${ph},0.18)`;
       ctx.fillRect(x + 1, H - 3, ww - 2, 3);
       if (n % 12 === 0) {
-        ctx.fillStyle = 'rgba(140,255,200,0.4)';
-        ctx.font = `${Math.max(8, Math.min(11, ww * 0.45))}px "JetBrains Mono", ui-monospace, monospace`;
+        ctx.fillStyle = `rgba(${ph},0.5)`;
+        ctx.font = `${Math.max(9, Math.min(12, ww * 0.5))}px ${font}`;
         ctx.textAlign = 'center';
         ctx.fillText(`C${n / 12 - 1}`, x + ww / 2, H - 12);
       }
@@ -164,19 +174,19 @@ export class KeyboardView {
       const cx = this.whiteIndex[n] * ww;
       const bw = ww * 0.58;
       const g = this.glow.get(n) ?? 0;
-      ctx.fillStyle = '#03080a';
+      ctx.fillStyle = black;
       ctx.fillRect(cx - bw / 2, 0, bw, H * 0.6);
-      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      ctx.fillStyle = `rgba(${ph},0.08)`;
       ctx.fillRect(cx - bw / 2 + 1, 0, bw - 2, H * 0.6 - 4);
       if (g > 0) {
-        ctx.shadowColor = 'rgba(255,90,220,0.9)'; ctx.shadowBlur = 20 * g;
-        ctx.fillStyle = `rgba(255, 90, 220, ${0.75 * g})`;
+        ctx.shadowColor = `rgba(${mg},0.9)`; ctx.shadowBlur = 20 * g;
+        ctx.fillStyle = `rgba(${mg}, ${0.75 * g})`;
         ctx.fillRect(cx - bw / 2, 0, bw, H * 0.6);
         ctx.shadowBlur = 0;
       }
     }
     if (this.held) {
-      ctx.fillStyle = 'rgba(255,90,220,0.06)';
+      ctx.fillStyle = `rgba(${mg},0.06)`;
       ctx.fillRect(0, 0, W, H);
     }
   }

@@ -99,7 +99,19 @@ window.addEventListener('keydown', (e) => {
 // ---- panels ----------------------------------------------------------------
 
 interface Group { title?: string; ids: string[]; cls?: string }
-interface PanelSpec { title: string; sub?: string; cls: string; span: number; tab: string; groups: Group[] }
+interface PanelSpec {
+  title: string; sub?: string; cls: string; span: number; tab: string; groups: Group[];
+  /** a living layer: the window folds to one line while the layer is off */
+  layer?: string;
+}
+
+/** Whether each living layer is doing anything; all four are off at zero. */
+const LAYER_ON: Record<string, (v: ParamValues) => boolean> = {
+  net: (v) => v.netAmount > 0,
+  garden: (v) => v.gardenOn >= 0.5,
+  rot: (v) => v.rot > 0 || v.rotAuto > 0,
+  climate: (v) => Math.round(v.climate) > 0 && v.climateAmt > 0,
+};
 
 /**
  * Four families. Everything that makes the tone lives in "voice"; everything
@@ -139,10 +151,10 @@ const LAYOUT: PanelSpec[] = [
   { tab: 'space', title: 'Out', sub: 'tape warmth', cls: 'out', span: 2, groups: [{ ids: ['warmth', 'volume'] }] },
 
   // ---- living: all off by default; at zero the synth above is untouched
-  { tab: 'living', title: 'Network', sub: 'voices feed their neighbours', cls: 'living', span: 3, groups: [{ ids: ['netAmount', 'netRange', 'netCut', 'netPitch', 'netDim'] }] },
-  { tab: 'living', title: 'Garden', sub: 'growth sequencer · replaces arp', cls: 'living', span: 5, groups: [{ ids: ['gardenOn', 'gardenRate', 'gardenScale', 'gardenLife', 'gardenBranch', 'gardenFade', 'gardenReach', 'gardenGate'] }] },
-  { tab: 'living', title: 'Rot', sub: 'the patch ages', cls: 'living', span: 2, groups: [{ ids: ['rot', 'rotAuto'] }] },
-  { tab: 'living', title: 'Climate', sub: 'one knob, five weathers', cls: 'living', span: 2, groups: [{ ids: ['climate', 'climateAmt'] }] },
+  { tab: 'living', title: 'Network', sub: 'voices feed their neighbours', cls: 'living', layer: 'net', span: 3, groups: [{ ids: ['netAmount', 'netRange', 'netCut', 'netPitch', 'netDim'] }] },
+  { tab: 'living', title: 'Garden', sub: 'growth sequencer · replaces arp', cls: 'living', layer: 'garden', span: 5, groups: [{ ids: ['gardenOn', 'gardenRate', 'gardenScale', 'gardenLife', 'gardenBranch', 'gardenFade', 'gardenReach', 'gardenGate'] }] },
+  { tab: 'living', title: 'Rot', sub: 'the patch ages', cls: 'living', layer: 'rot', span: 2, groups: [{ ids: ['rot', 'rotAuto'] }] },
+  { tab: 'living', title: 'Climate', sub: 'one knob, five weathers', cls: 'living', layer: 'climate', span: 2, groups: [{ ids: ['climate', 'climateAmt'] }] },
 ];
 
 function onParam(id: string, v: number): void {
@@ -150,9 +162,20 @@ function onParam(id: string, v: number): void {
   synth.setParam(id, v);
   setCurrent(null);
   if (id === 'volume') master.value = String(v);
+  refreshLayers();
+}
+
+function refreshLayers(expandOn = false): void {
+  for (const [layer, { panel, meta }] of layerPanels) {
+    const off = !LAYER_ON[layer](values);
+    meta.textContent = off ? 'off' : 'on';
+    panel.classList.toggle('off', off);
+    if (expandOn) panel.classList.toggle('collapsed', off);
+  }
 }
 
 const panelsEl = $('#panels');
+const layerPanels = new Map<string, { panel: HTMLElement; meta: HTMLElement }>();
 for (const spec of LAYOUT) {
   const panel = document.createElement('section');
   panel.className = `panel ${spec.cls}`;
@@ -161,6 +184,14 @@ for (const spec of LAYOUT) {
   const h = document.createElement('h2');
   h.textContent = spec.title;
   if (spec.sub) { const s = document.createElement('small'); s.textContent = spec.sub; h.append(s); }
+  if (spec.layer) {
+    // layers fold to one line; the header says whether it is on and toggles
+    const meta = document.createElement('span'); meta.className = 'meta';
+    h.append(meta);
+    h.classList.add('fold');
+    h.addEventListener('click', () => panel.classList.toggle('collapsed'));
+    layerPanels.set(spec.layer, { panel, meta });
+  }
   const body = document.createElement('div');
   body.className = 'body';
   for (const g of spec.groups) {
@@ -174,7 +205,7 @@ for (const spec of LAYOUT) {
     for (const id of g.ids) {
       const def = PARAM_BY_ID[id];
       if (!def) { console.warn('unknown param', id); continue; }
-      const c = makeControl(def, values[id], (v) => onParam(id, v));
+      const c = makeControl(def, values[id], (v) => onParam(id, v), 8);
       controls.set(id, c);
       host.append(c.el);
     }
@@ -235,6 +266,7 @@ function applyValues(next: ParamValues): void {
   }
   synth.loadPreset(values);
   master.value = String(values.volume);
+  refreshLayers(true);
 }
 
 function loadPreset(name: string): void {
