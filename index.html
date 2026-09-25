@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MYCELIA</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23050b09'/%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%2378ffc8'/%3E%3Ccircle cx='3' cy='4' r='1.2' fill='%23ff5adc'/%3E%3Ccircle cx='13' cy='12' r='1.2' fill='%2335f0e6'/%3E%3Cpath d='M3 4 L8 8 L13 12' stroke='%2378ffc8' stroke-width='.8' fill='none' opacity='.7'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <canvas id="organism"></canvas>
+    <div class="scanlines"></div>
+    <div id="app">
+      <header>
+        <div class="brand">
+          <h1 data-text="MYCELIA">MYCELIA</h1>
+          <span class="sub">bioluminescent polysynth // ft</span>
+        </div>
+        <div class="presets">
+          <button id="prev" class="ghost" title="previous preset (◂)">◂</button>
+          <button id="browse" title="browse the presets (`)">
+            <span class="tag" id="preset-tag">pad</span>
+            <span class="nm" id="preset-name">Canopy</span>
+          </button>
+          <button id="next" class="ghost" title="next preset (▸)">▸</button>
+          <button id="spore" class="ghost" title="mutate the current sound a little">spore</button>
+          <button id="copy" class="ghost" title="copy patch JSON to clipboard">copy</button>
+        </div>
+        <canvas id="scope"></canvas>
+        <div class="status">
+          <button id="start" class="primary">wake</button>
+          <select id="midi-port" title="MIDI input"><option value="all">all MIDI inputs</option></select>
+          <span id="midi-led" class="led"></span>
+          <label class="master" title="master volume"><span>vol</span><input id="master" type="range" min="0" max="1" step="0.01" value="0.7" /></label>
+          <span id="stats" class="muted"></span>
+          <button id="panic" class="ghost" title="stop all sound">panic</button>
+        </div>
+      </header>
+
+      <nav id="tabs" class="tabs"></nav>
+      <main id="panels"></main>
+
+      <footer>
+        <div class="hint muted">
+          <kbd>A</kbd>–<kbd>'</kbd> / <kbd>Z</kbd>–<kbd>/</kbd> play · <kbd>←</kbd><kbd>→</kbd> octave (<span id="octave">C4</span>) · <kbd>Shift</kbd> louder · <kbd>Space</kbd> sustain · <kbd>1</kbd>–<kbd>4</kbd> families · <kbd>`</kbd> browse presets · drag knobs, <kbd>Shift</kbd> fine, double-click reset
+        </div>
+        <canvas id="keyboard"></canvas>
+      </footer>
+    </div>
+
+    <!-- preset browser -->
+    <div id="browser" class="browser" hidden>
+      <div class="sheet">
+        <div class="head">
+          <h2>the garden</h2>
+          <input id="browser-search" type="search" placeholder="search presets…" autocomplete="off" spellcheck="false" />
+          <button id="browser-close" class="ghost" title="close (Esc)">esc</button>
+        </div>
+        <div id="browser-list" class="list"></div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
