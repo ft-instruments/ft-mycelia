@@ -231,7 +231,6 @@ kbd { font-family: var(--mono); font-size: 10px; padding: 1px 4px; border: 1px s
 .browser .card.on .nm { color: #fff; }
 
 /* one colour per category, used by the cards, the headings and the header chip */
-[data-tag="ascent"]  { --tagc: #8fd8ff; }
 [data-tag="pad"]     { --tagc: var(--mint); }
 [data-tag="keys"]    { --tagc: var(--amber); }
 [data-tag="pluck"]   { --tagc: var(--cyan); }

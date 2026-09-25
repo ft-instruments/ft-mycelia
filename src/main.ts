@@ -236,9 +236,9 @@ for (const t of TABS) {
 // Categories, in the order they should appear in the browser. Anything with a
 // tag not listed here is appended at the end under its own name.
 const CATEGORY_NAMES: Record<string, string> = {
-  ascent: 'the ascent', pad: 'pads', keys: 'keys', pluck: 'plucks', lead: 'leads',
-  bass: 'bass', synth: 'synths', arp: 'arps & sequences', drum: 'drums',
-  texture: 'textures', living: 'living (on top)', init: 'init',
+  pad: 'pads', keys: 'keys', synth: 'synths', pluck: 'plucks', lead: 'leads',
+  bass: 'bass', arp: 'arps & sequences', texture: 'textures', living: 'living (on top)',
+  drum: 'drums', init: 'init',
 };
 const CATEGORY_ORDER = Object.keys(CATEGORY_NAMES);
 const catRank = (tag: string) => { const i = CATEGORY_ORDER.indexOf(tag); return i < 0 ? CATEGORY_ORDER.length : i; };

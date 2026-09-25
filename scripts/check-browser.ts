@@ -96,10 +96,10 @@ async function main(): Promise<void> {
   writeFileSync('out/screenshot-browser.png', Buffer.from(shot.data, 'base64'));
   console.log(`browser: ${cards} presets in ${cats} categories`);
   // and that the search narrows it
-  await evaluate('const s = document.querySelector("#browser-search"); s.value = "ascent"; s.dispatchEvent(new Event("input"));');
+  await evaluate('const s = document.querySelector("#browser-search"); s.value = "bloom"; s.dispatchEvent(new Event("input"));');
   await sleep(200);
   const shown = await evaluate('[...document.querySelectorAll("#browser-list .card")].filter((c) => !c.hidden).length');
-  console.log(`search "ascent" narrows to ${shown}`);
+  console.log(`search "bloom" narrows to ${shown}`);
   await evaluate('document.querySelector("#browser-close").click()');
   console.log('wrote out/screenshot-{voice,motion,space,living,browser}.png');
   const errors = logs.filter((l) => l.startsWith('[error]') || l.startsWith('[exception]'));

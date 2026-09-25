@@ -95,25 +95,21 @@ Grouped by category in the browser; ◂ ▸ step through them, **spore** mutates
 
 | category | presets |
 |---|---|
-| the ascent | First Light · Resurrections · Chalet · Summit Wind · Crystal Heart · Golden Ridge · Snowfall · Strawberry · Cassette Loop · Reach · Mirror Temple · Anxiety · Badeline · Confronting · Epilogue |
-| pads | Canopy · Bioluminescence · Understory · Fog Bank · Solar Strings · Tidal Choir · Deep Sleep · Aurora |
-| keys | Neon Moss · Velvet Keys · Polymoss · Organelle |
-| synths | Chrome Brass · Stack of Six · PWM Bloom |
-| bass | Root System · Taproot · Acid Lichen · Wide Bed |
+| pads | Canopy · Bioluminescence · Understory · Fog Bank · Solar Strings · Tidal Choir · Deep Sleep · Aurora · First Light · Updraft · Quartz Bloom · Afterglow |
+| keys | Neon Moss · Velvet Keys · Polymoss · Organelle · Amber Keys · Chalet |
+| synths | Chrome Brass · Stack of Six · PWM Bloom · Tremolo Grove (gated pad) · Hyphae Stack |
+| plucks | Glass Fern · Dewdrop · Kalimba Circuit · Sporocarp |
 | leads | Overgrowth · Glowworm · Whistle Fern (self-oscillating filter) · Rust Saw |
-| plucks | Glass Fern · Dewdrop · Kalimba Circuit |
-| arps & sequences | Spore Drift · Grid Rain · Firefly Sequence · Mycelial Pulse · Slow Vines · Circuit Bees · Chord Strobe |
-| drums | Kick 808 · Tom Grove · Snare Spark · Hat Static · Drum Arp — the ladder self-oscillating with a fast filter envelope, the way analogue polys did drums |
-| textures | Wind Through Wires · Cathedral Spores |
+| bass | Root System · Taproot · Acid Lichen · Wide Bed · Umbra (mono counter-voice) · Undertow |
+| arps & sequences | Spore Drift · Grid Rain · Firefly Sequence · Mycelial Pulse · Slow Vines · Circuit Bees · Chord Strobe · Snowfall · Cassette Loop · Jitter Spores |
+| textures | Wind Through Wires · Cathedral Spores · Tritone Hollow |
 | living (on top) | Symbiosis (network) · Seed Garden · Fifths Forest (garden + network) · Compost (auto-rot) · Night Rain · Storm Cell (climates) |
+| drums | Kick 808 · Tom Grove · Snare Spark · Hat Static · Drum Arp — the ladder self-oscillating with a fast filter envelope, the way analogue polys did drums |
 
-**The ascent** is a bank for the kind of writing that leans on one warm
-polysynth and little else: detuned saw beds, a keys patch that can carry a
-melody on its own, bell arps, a gated pad, and a dark counter-voice. Nine of
-the fifteen use the modulation matrix — velocity opening the filter on
-*First Light*, the amp envelope walking the oscillator morph on *Crystal
-Heart*, a per-note random on the pan for *Snowfall* and on the pitch (a
-fraction of a semitone) for *Cassette Loop*'s tape wobble.
+Several use the modulation matrix — velocity opening the filter on *First
+Light*, the amp envelope walking the oscillator morph on *Quartz Bloom*, a
+per-note random on the pan for *Snowfall* and on the pitch (a fraction of a
+semitone) for *Cassette Loop*'s tape wobble.
 
 `node scripts/render.ts onset` measures note-on to −20 dB for every preset.
 Everything meant to be played sits at 2–5 ms; the only slow ones are the pads
