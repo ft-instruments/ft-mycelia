@@ -221,8 +221,9 @@ export function format(p: ParamDef, v: number): string {
   if (p.unit === 's') return v >= 1 ? `${v.toFixed(2)} s` : `${(v * 1000).toFixed(0)} ms`;
   if (p.unit === 'ct') return `${v.toFixed(0)} ct`;
   if (p.unit === 'min') return v === 0 ? 'off' : `${v.toFixed(1)} min`;
-  if (p.min < 0) return (v >= 0 ? '+' : '') + v.toFixed(2);
-  return v.toFixed(2);
+  // plain amounts read as percentages; bipolar ones keep their sign
+  if (p.min < 0) return (v >= 0 ? '+' : '−') + `${Math.round(Math.abs(v) * 100)}%`;
+  return `${Math.round(v * 100)}%`;
 }
 
 export interface Preset {

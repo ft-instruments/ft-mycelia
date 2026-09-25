@@ -74,7 +74,7 @@ async function main(): Promise<void> {
     v.synth.noteOff(40); v.synth.noteOff(60); v.synth.noteOff(76);
     return p;
   })()`);
-  const state = await evaluate('document.querySelector("#start").textContent');
+  const state = await evaluate('document.querySelector("#start-label").textContent');
   console.log(`audio: ${state}; worklet peak while holding a chord: ${Number(peak).toFixed(3)}`);
   // let the display update, then screenshot the whole page
   await sleep(400);
@@ -85,6 +85,11 @@ async function main(): Promise<void> {
     const shot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true }) as { data: string };
     writeFileSync(`out/screenshot-${tab}.png`, Buffer.from(shot.data, 'base64'));
   }
+  // the living layers, with a preset that uses them
+  await evaluate("window.__mycelia.loadPreset('Fifths Forest')");
+  await sleep(700);
+  const lshot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true }) as { data: string };
+  writeFileSync('out/screenshot-living-on.png', Buffer.from(lshot.data, 'base64'));
   const head = await send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: 1400, height: 110, scale: 1 } }) as { data: string };
   writeFileSync('out/screenshot-header.png', Buffer.from(head.data, 'base64'));
   // the preset browser, and a count of what it holds
@@ -101,6 +106,27 @@ async function main(): Promise<void> {
   const shown = await evaluate('[...document.querySelectorAll("#browser-list .card")].filter((c) => !c.hidden).length');
   console.log(`search "bloom" narrows to ${shown}`);
   await evaluate('document.querySelector("#browser-close").click()');
+  // saving a sound under a name of your own, then deleting it
+  await evaluate('document.querySelector("#save").click()');
+  await sleep(250);
+  await evaluate('const n = document.querySelector("#save-name"); n.value = "Check Sound"; n.dispatchEvent(new Event("input"));');
+  const sshot = await send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: 1400, height: 900, scale: 1 } }) as { data: string };
+  writeFileSync('out/screenshot-save.png', Buffer.from(sshot.data, 'base64'));
+  await evaluate('document.querySelector("#savebar").requestSubmit()');
+  await sleep(200);
+  const saved = await evaluate('[document.querySelectorAll("#browser-list .card[data-tag=user]").length, document.querySelector("#preset-name").textContent]') as [number, string];
+  await evaluate('const d = document.querySelector("#browser-list .card[data-tag=user] .del"); d.click(); d.click();');
+  const left = await evaluate('document.querySelectorAll("#browser-list .card[data-tag=user]").length');
+  console.log(`save: ${saved[0]} of yours, header shows "${saved[1]}"; after delete: ${left}`);
+  if (saved[0] !== 1 || saved[1] !== 'Check Sound' || left !== 0) { console.error('saving presets does not work'); process.exitCode = 1; }
+  // the power button sleeps and wakes the synth
+  await evaluate('document.querySelector("#start").click()');
+  await sleep(300);
+  const asleep = await evaluate('document.querySelector("#start-label").textContent');
+  await evaluate('document.querySelector("#start").click()');
+  await sleep(500);
+  const awake = await evaluate('document.querySelector("#start-label").textContent');
+  console.log(`power: "${asleep}" then "${awake}"`);
   console.log('wrote out/screenshot-{voice,motion,space,living,browser}.png');
   const errors = logs.filter((l) => l.startsWith('[error]') || l.startsWith('[exception]'));
   for (const l of logs) console.log('  console', l);
