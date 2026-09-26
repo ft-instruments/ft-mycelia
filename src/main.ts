@@ -615,7 +615,7 @@ midi.init().then((ok) => {
 const stats = $('#stats');
 let lastPeak = 0;
 synth.onStats = (s) => {
-  stats.textContent = `${s.voices} voices · ${String(Math.round(s.load * 100)).padStart(2, '0')}% dsp`;
+  stats.textContent = `${s.voices} voices · ${Math.round(s.load * 100)}% dsp`;
   const peak = Math.max(s.peakL, s.peakR);
   lastPeak = peak;
   scope.update(s.scope, peak);
