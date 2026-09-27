@@ -28,6 +28,15 @@ export class LFO {
     let p = this.phase + dt;
     let wrapped = false;
     if (p >= 1) { p -= Math.floor(p); wrapped = true; }
+    return this.shape(shape, p, wrapped);
+  }
+
+  /** Jump to phase `p` (0..1), for an LFO locked to the beat clock. */
+  tickAt(shape: LfoShape, p: number): number {
+    return this.shape(shape, p, p < this.phase);
+  }
+
+  private shape(shape: LfoShape, p: number, wrapped: boolean): number {
     this.phase = p;
     let v: number;
     switch (shape) {

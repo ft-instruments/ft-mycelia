@@ -3,7 +3,8 @@
 // envelope curves, the LFO shapes, the ladder's response). Redrawn when a
 // value changes, never per audio block.
 
-import { type ParamValues } from '../dsp/params.ts';
+import { type ParamValues, LFO_SYNCS, LFO_SYNC_BEATS, PUMP_RATES, PUMP_BEATS } from '../dsp/params.ts';
+import { pumpDuck } from '../dsp/pump.ts';
 
 type Draw = (g: Pen, v: ParamValues) => void;
 
@@ -238,7 +239,8 @@ const voicing: Draw = (g, v) => {
 const lfo = (n: 1 | 2): Draw => (g, v) => {
   const { w, h } = g;
   g.grid(4);
-  const shape = Math.round(v[`l${n}Shape`]), rate = v[`l${n}Rate`];
+  const shape = Math.round(v[`l${n}Shape`]), sync = Math.round(v[`l${n}Sync`]);
+  const rate = sync > 0 ? v.tempo / (60 * LFO_SYNC_BEATS[sync]) : v[`l${n}Rate`];
   const cycles = Math.max(1, Math.min(6, Math.round(1 + Math.log2(1 + rate))));
   const pts: [number, number][] = [];
   const fade = n === 1 ? v.l1Fade : 0;
@@ -248,7 +250,25 @@ const lfo = (n: 1 | 2): Draw => (g, v) => {
     pts.push([u * w, h / 2 - lfoSample(shape, u * cycles, n) * (h / 2 - 9) * f]);
   }
   g.trace(pts, { base: h / 2 });
-  g.text(`${rate >= 1 ? rate.toFixed(1) : rate.toFixed(2)} Hz`, w - 8, 13, 'right');
+  g.text(sync > 0 ? `${LFO_SYNCS[sync]} · ${Math.round(v.tempo)} bpm` : `${rate >= 1 ? rate.toFixed(1) : rate.toFixed(2)} Hz`, w - 8, 13, 'right');
+};
+
+/** Two bars of the pump's gain, a beat line per step. */
+const pump: Draw = (g, v) => {
+  const { w, h } = g;
+  const rate = Math.round(v.pumpRate), beats = PUMP_BEATS[rate] ?? 1;
+  const steps = Math.round(8 / beats);
+  g.grid(Math.min(16, steps), 1);
+  const stepSec = beats * 60 / v.tempo, amt = v.pumpAmt, on = amt > 0;
+  const shown = on ? amt : 0.8;   // off: draw the shape faintly, so the curve can be set first
+  const pts: [number, number][] = [];
+  for (let i = 0; i <= 400; i++) {
+    const u = (i / 400) * steps;
+    const gain = 1 - shown * pumpDuck(u - Math.floor(u), stepSec, v.pumpRel, v.pumpCurve);
+    pts.push([(i / 400) * w, h - 6 - gain * (h - 18)]);
+  }
+  g.trace(pts, { base: h, alpha: on ? 1 : 0.35 });
+  g.text(on ? `${PUMP_RATES[rate]} · ${v.pumpWhere >= 0.5 ? 'dry' : 'all'}` : 'off', w - 8, 13, 'right', on ? 0.6 : 0.35);
 };
 
 const arp: Draw = (g, v) => {
@@ -404,7 +424,7 @@ const garden: Draw = (g, v) => {
 
 export const VIZ: Record<string, Draw> = {
   oscA: osc('a'), oscB: osc('b'), mix, filter, env, voicing,
-  lfo1: lfo(1), lfo2: lfo(2), arp, ensemble, delay, reverb, warmth, network, garden,
+  lfo1: lfo(1), lfo2: lfo(2), pump, arp, ensemble, delay, reverb, warmth, network, garden,
 };
 
 /** One module's picture: a canvas that redraws itself from the values. */

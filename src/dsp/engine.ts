@@ -1,7 +1,7 @@
 // The whole instrument: MIDI in, stereo audio out. Voice allocation
 // (poly / mono / legato with glide), sustain pedal, arpeggiator, the
-// global LFO, and the effect chain (high-pass -> ensemble -> tape delay ->
-// hall reverb -> tape warmth -> DC block -> soft clip).
+// global LFO, the beat clock, and the effect chain (high-pass -> ensemble ->
+// tape delay -> hall reverb -> pump -> tape warmth -> DC block -> soft clip).
 //
 // Shaped like a plugin processor: construct with a sample rate, feed
 // noteOn/noteOff/controlChange/pitchBend, call process(L, R, n).
@@ -13,8 +13,9 @@ import { Ensemble } from './chorus.ts';
 import { TapeDelay } from './delay.ts';
 import { Reverb } from './reverb.ts';
 import { LFO, LfoShape } from './lfo.ts';
+import { Pump, pumpDuck } from './pump.ts';
 import { DCBlock, OnePoleHP, softClip, tanhf } from './util.ts';
-import { defaults, PARAM_BY_ID, type ParamId, type ParamValues } from './params.ts';
+import { defaults, PARAM_BY_ID, LFO_SYNC_BEATS, PUMP_BEATS, type ParamId, type ParamValues } from './params.ts';
 
 const MAX_VOICES = 16;
 const CHUNK = 32;
@@ -33,9 +34,16 @@ export class MyceliaEngine {
   private delay: TapeDelay;
   private reverb: Reverb;
   private lfo2 = new LFO(99, false);
+  private pump: Pump;
+  /**
+   * Beats since the clock started. It restarts on the first note after
+   * silence, so the pump and synced LFO 2 land on the downbeat you play.
+   * (In a plugin, this is the host's song position instead.)
+   */
+  private beats = 0;
   private hpL: OnePoleHP; private hpR: OnePoleHP;
   private dcL: DCBlock; private dcR: DCBlock;
-  private gm: GlobalMod = { lfo2: 0, bend: 0, modWheel: 0 };
+  private gm: GlobalMod = { lfo2: 0, bend: 0, modWheel: 0, pump: 0 };
   private bendNorm = 0;
   private sustain = false;
   private sustained = new Set<Voice>();
@@ -62,6 +70,7 @@ export class MyceliaEngine {
     this.ensemble = new Ensemble(sampleRate);
     this.delay = new TapeDelay(sampleRate);
     this.reverb = new Reverb(sampleRate);
+    this.pump = new Pump(sampleRate);
     this.hpL = new OnePoleHP(sampleRate, 20);
     this.hpR = new OnePoleHP(sampleRate, 20);
     this.dcL = new DCBlock(sampleRate);
@@ -72,6 +81,13 @@ export class MyceliaEngine {
     let c = 0;
     for (const v of this.voices) if (v.active) c++;
     return c;
+  }
+
+  /** Nothing sounding and nothing about to: the next note starts the bar. */
+  private get silent(): boolean {
+    if (this.arpOn && this.arp.active) return false;
+    for (const v of this.voices) if (v.active) return false;
+    return true;
   }
 
   get arpOn(): boolean { return this.p.arpMode >= 1 && this.p.gardenOn < 0.5; }
@@ -106,6 +122,7 @@ export class MyceliaEngine {
   noteOn(note: number, velocity: number): void {
     if (velocity <= 0) { this.noteOff(note); return; }
     const vel = Math.min(1, velocity / 127);
+    if (this.silent) this.beats = 0;
     if (this.gardenOn) this.garden.keyDown(note, vel);
     else if (this.arpOn) this.arp.keyDown(note, vel, this.p.arpHold >= 0.5 || this.sustain);
     else this.voiceOn(note, vel);
@@ -311,12 +328,23 @@ export class MyceliaEngine {
     const gm = this.gm;
     gm.bend = this.bendNorm * p.bend;
     const arpOn = this.arpOn, gardenOn = this.gardenOn;
+    const beat0 = this.beats, dBeat = p.tempo / (60 * this.fs);
+    this.beats = beat0 + n * dBeat;
+    const l2Sync = p.l2Sync | 0;
+    const pumpBeats = PUMP_BEATS[p.pumpRate | 0] ?? 1;
+    const pumpSec = pumpBeats * 60 / p.tempo;
     for (let off = 0; off < n; off += CHUNK) {
       const count = Math.min(CHUNK, n - off);
       if (gardenOn) this.garden.process(count, { rateIdx: p.gardenRate | 0, scaleIdx: p.gardenScale | 0, life: p.gardenLife | 0, branch: p.gardenBranch, fade: p.gardenFade, reach: p.gardenReach | 0, gate: p.gardenGate, tempo: p.tempo }, this.arpOut);
       else if (arpOn) this.arp.process(count, p.arpMode | 0, p.arpRate | 0, p.arpOct | 0, p.arpGate, p.arpSwing, p.tempo, this.arpOut);
       this.network(p);
-      gm.lfo2 = this.lfo2.tick(p.l2Shape as LfoShape, p.l2Rate * count / this.fs);
+      const beat = beat0 + off * dBeat;
+      if (l2Sync > 0) {
+        const c = beat / LFO_SYNC_BEATS[l2Sync];
+        gm.lfo2 = this.lfo2.tickAt(p.l2Shape as LfoShape, c - Math.floor(c));
+      } else gm.lfo2 = this.lfo2.tick(p.l2Shape as LfoShape, p.l2Rate * count / this.fs);
+      const pb = beat / pumpBeats;
+      gm.pump = pumpDuck(pb - Math.floor(pb), pumpSec, p.pumpRel, p.pumpCurve);
       for (const v of this.voices) if (v.active) v.render(L, R, off, count, p, gm);
     }
     // voice sum trim, high-pass
@@ -326,11 +354,15 @@ export class MyceliaEngine {
       L[i] = this.hpL.tick(L[i] * trim);
       R[i] = this.hpR.tick(R[i] * trim);
     }
+    // pump: before the effects ("dry", tails fill the gaps) or after them ("all")
+    const pumpOn = p.pumpAmt > 0, pumpDry = p.pumpWhere >= 0.5;
+    if (pumpOn && pumpDry) this.pump.process(L, R, n, beat0, dBeat, pumpBeats, p.pumpAmt, p.pumpRel, p.pumpCurve, p.tempo);
     // effects
     this.ensemble.process(L, R, n, p.chRate, p.chDepth, p.chTone, p.chMix);
     const dlSeconds = (DELAY_BEATS[p.dlTime | 0] ?? 0.5) * 60 / p.tempo;
     this.delay.process(L, R, n, dlSeconds, p.dlFb, p.dlTone, p.dlPing >= 0.5, p.dlMix);
     this.reverb.process(L, R, n, p.rvSize, p.rvDecay, p.rvTone, p.rvShimmer, p.rvMix);
+    if (pumpOn && !pumpDry) this.pump.process(L, R, n, beat0, dBeat, pumpBeats, p.pumpAmt, p.pumpRel, p.pumpCurve, p.tempo);
     // tape warmth, volume, DC, safety clip
     const drive = 1 + p.warmth * 2.2;
     const makeup = (1 / tanhf(drive * 0.5)) * 0.5;   // unity-ish at -6 dB

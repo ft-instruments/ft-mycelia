@@ -30,7 +30,7 @@ header, next to the meter.
 
 ```
 OSC A ─┐                                    ┌─ ENSEMBLE (BBD chorus)
-OSC B ─┤ per voice, stereo → LADDER ×2 → VCA ┤  → TAPE DELAY → HALL / SHIMMER → warmth → out
+OSC B ─┤ per voice, stereo → LADDER ×2 → VCA ┤  → TAPE DELAY → HALL / SHIMMER → PUMP → warmth → out
 SUB   ─┤   (unison spread)   (L and R)       │
 NOISE ─┘                                     └─ up to 16 voices, poly / mono / legato + glide
 ```
@@ -42,14 +42,15 @@ Everything lives in [`src/dsp/`](src/dsp/) and has no browser dependencies.
 | `osc.ts` | Oscillator bank: up to 7 detuned, stereo-spread copies of a continuous **tri → saw → pulse** morph with pulse width. Saw/pulse edges are PolyBLEP anti-aliased (aliases sit ≥ 90 dB down at C8). Every copy has a fixed tuning error and a slow random-walk pitch **drift** — the "several VCO cards that never quite agree" thing that makes analogue polys sound alive. Sub (sine / rounded square / −2 oct) and pinkish noise. |
 | `ladder.ts` | **Transistor ladder** low-pass after Huovilainen: four tanh-saturating one-pole stages, resonance feedback from the saturated output, frequency/resonance corrections for the discretisation, 2× oversampled. Self-oscillates from ~0.93 resonance, tuned to within 1 % of the cutoff, compresses when driven. 24 dB or 12 dB tap. |
 | `env.ts` | ADSR with RC-style curves (convex attack towards an overshoot target, exponential decay/release). Retriggers from the current level — no clicks. |
-| `lfo.ts` | Sine / tri / saw / square / S&H / **drift** (smoothed random). LFO 1 is per voice (with fade-in), LFO 2 is global. |
-| `voice.ts` → `matrix()` | The **modulation matrix**: six slots, each a source, a destination and a bipolar amount. Sources are LFO 1 and 2, the two envelopes, velocity, key, mod wheel, bend, a per-note random and the network's received influence. Destinations are everything in the voice that can usefully move — pitch, **either oscillator's morph or both together**, pulse width, detune, the four source levels, cutoff, resonance, drive, level and pan. Every amount is 0 by default, and the whole block is skipped when nothing is routed: with all six slots pointed somewhere at amount 0, all 47 older presets render **bit-identically**. |
+| `lfo.ts` | Sine / tri / saw / square / S&H / **drift** (smoothed random). LFO 1 is per voice (with fade-in), LFO 2 is global. Either can be **synced** (4 bars … 1/32, dotted and triplet): LFO 1 then runs at the tempo and still restarts at note-on (a wobble per note), LFO 2 is locked to the beat clock (every voice wobbles together, on the beat). |
+| `pump.ts` | **Pump**: tempo-synced ducking, the sidechain-compressor sound without a kick. Each step (1/1 … 1/8) the level drops in 4 ms and comes back over `release` (a fraction of the step) along `curve` — low stays down and swells back late (the breathing trance pad), high snaps back early. Ducks `all` (after the reverb, so the tails pump too) or `dry` (before the effects, so they fill the gaps). Its shape is also a matrix source, so it can pump the filter as well — or only the filter, with the amount at 0. |
+| `voice.ts` → `matrix()` | The **modulation matrix**: six slots, each a source, a destination and a bipolar amount. Sources are LFO 1 and 2, the two envelopes, velocity, key, mod wheel, bend, a per-note random, the network's received influence and the pump. Destinations are everything in the voice that can usefully move — pitch, **either oscillator's morph or both together**, pulse width, detune, the four source levels, cutoff, resonance, drive, level and pan. Every amount is 0 by default, and the whole block is skipped when nothing is routed: with all six slots pointed somewhere at amount 0, all 47 older presets render **bit-identically**. |
 | `voice.ts` | One voice: oscillators → two ladder filters (true stereo) → VCA. Modulation is evaluated every 16 samples with smoothed filter coefficients; the amp envelope and audio run per sample. |
 | `chorus.ts` | **String-machine ensemble**: three modulated bucket-brigade taps per channel driven by a slow and a fast triangle LFO 120° apart (Solina topology), BBD darkness (one-pole) and soft clipping on the wet path. |
 | `delay.ts` | Tempo-synced **tape delay**: low-pass, high-pass and soft clip in the loop, wobbling read head, slewed time changes (pitch bends instead of clicks), optional ping-pong. |
 | `reverb.ts` | **Hall**: 8-line FDN with Householder mixing, slowly modulated read positions (no metallic ringing), per-line damping and high-pass, four diffusion allpasses, pre-delay. **Shimmer** feeds an octave-up granular pitch shift of the tail, low-passed, back into the network. |
 | `arp.ts` | Arpeggiator on the internal clock: up / down / up-down / random / as played / chord, 1–4 octaves, gate, swing, hold (sustain pedal also holds). |
-| `engine.ts` | Voice allocation (poly with same-note reuse and quiet-first stealing; mono and legato with glide), sustain, pitch bend, arp, LFO 2, effect chain, tape-style warmth saturation, DC block, safety clip. `process(L, R, n)` is the whole instrument. |
+| `engine.ts` | Voice allocation (poly with same-note reuse and quiet-first stealing; mono and legato with glide), sustain, pitch bend, arp, LFO 2, the **beat clock** (restarts on the first note after silence, so the pump and synced LFO 2 land on the downbeat you play), effect chain, tape-style warmth saturation, DC block, safety clip. `process(L, R, n)` is the whole instrument. |
 | `garden.ts` | The growth sequencer (see below). |
 | `params.ts` | The flat parameter list (what a host would see) and the factory presets. |
 
@@ -95,13 +96,13 @@ Grouped by category in the browser; ◂ ▸ step through them, **spore** mutates
 
 | category | presets |
 |---|---|
-| pads | Canopy · Bioluminescence · Understory · Fog Bank · Solar Strings · Tidal Choir · Deep Sleep · Aurora · First Light · Updraft · Quartz Bloom · Afterglow |
-| keys | Neon Moss · Velvet Keys · Polymoss · Organelle · Amber Keys · Chalet |
-| synths | Chrome Brass · Stack of Six · PWM Bloom · Tremolo Grove (gated pad) · Hyphae Stack |
-| plucks | Glass Fern · Dewdrop · Kalimba Circuit · Sporocarp |
-| leads | Overgrowth · Glowworm · Whistle Fern (self-oscillating filter) · Rust Saw |
-| bass | Root System · Taproot · Acid Lichen · Wide Bed · Umbra (mono counter-voice) · Undertow |
-| arps & sequences | Spore Drift · Grid Rain · Firefly Sequence · Mycelial Pulse · Slow Vines · Circuit Bees · Chord Strobe · Snowfall · Cassette Loop · Jitter Spores |
+| pads | Canopy · Bioluminescence · Understory · Fog Bank · Solar Strings · Tidal Choir · Deep Sleep · Aurora · First Light · Updraft · Quartz Bloom · Afterglow · Tidewood Breath · Lichen Tide |
+| keys | Neon Moss · Velvet Keys · Polymoss · Organelle · Amber Keys · Chalet · Lantern Keys |
+| synths | Chrome Brass · Stack of Six · PWM Bloom · Tremolo Grove (gated pad) · Hyphae Stack · Heartwood Pump (pumping supersaw) |
+| plucks | Glass Fern · Dewdrop · Kalimba Circuit · Sporocarp · Dew Chords |
+| leads | Overgrowth · Glowworm · Whistle Fern (self-oscillating filter) · Rust Saw · Glowcap Lead |
+| bass | Root System · Taproot · Acid Lichen · Wide Bed · Umbra (mono counter-voice) · Undertow · Burrow Wobble (LFO 1 synced to 1/8) · Pulsing Loam |
+| arps & sequences | Spore Drift · Grid Rain · Firefly Sequence · Mycelial Pulse · Slow Vines · Circuit Bees · Chord Strobe · Snowfall · Cassette Loop · Jitter Spores · Lumen Pulse · Glimmer Steps |
 | textures | Wind Through Wires · Cathedral Spores · Tritone Hollow |
 | living (on top) | Symbiosis (network) · Seed Garden · Fifths Forest (garden + network) · Compost (auto-rot) · Night Rain · Storm Cell (climates) |
 | drums | Kick 808 · Tom Grove · Snare Spark · Hat Static · Drum Arp — the ladder self-oscillating with a fast filter envelope, the way analogue polys did drums |
@@ -133,7 +134,7 @@ from `--key-*` custom properties.
 - `noteOn / noteOff / controlChange / pitchBend` ↔ the MIDI buffer in `processBlock`
 - `process(L, R, n)` ↔ the audio buffer (any `n`; it chunks internally in 32s)
 - `setParam(id, value)` ↔ `AudioProcessorValueTreeState`, using `PARAMS` as the list
-- the arp uses the internal `tempo`; in a plugin, feed it the host tempo instead
+- the arp, delay, pump and synced LFOs use the internal `tempo` and beat clock; in a plugin, feed them the host tempo and PPQ position instead
 
 No allocation on the audio thread; all state is typed arrays and scalars.
 About 1 % of one core per voice at 48 kHz in V8 (≈13 % for ten voices of the
@@ -143,5 +144,5 @@ fattest preset, effects included); expect the C++ version to run 3–5× faster.
 
 - No hard sync, FM or ring mod (on purpose — it's an analogue-flavoured instrument), and no modulation matrix beyond the fixed routings.
 - The resonance compensation and drive were set by measurement, not by ear; the filter loses some resonance above ~6 kHz.
-- Arp and delay sync to the internal clock only.
+- Arp, delay, pump and synced LFOs follow the internal clock only; in a plugin they should follow the host's tempo and song position.
 - Presets can be copied as JSON but not saved in the browser yet.

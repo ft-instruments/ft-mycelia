@@ -26,6 +26,12 @@ export const VOICE_MODES = ['poly', 'mono', 'legato'];
 export const SUB_SHAPES = ['sine', 'square', '-2 oct'];
 export const SCALE_NAMES = ['penta', 'major', 'minor', 'dorian', 'lydian', 'whole', 'fifths', 'chroma'];
 export const CLIMATES = ['none', 'sun', 'rain', 'night', 'storm'];
+/** LFO rate: free (the Hz knob) or locked to the tempo. */
+export const LFO_SYNCS = ['free', '4 bars', '2 bars', '1 bar', '1/2', '1/4.', '1/4', '1/4T', '1/8.', '1/8', '1/8T', '1/16', '1/16T', '1/32'];
+export const LFO_SYNC_BEATS = [0, 16, 8, 4, 2, 1.5, 1, 2 / 3, 0.75, 0.5, 1 / 3, 0.25, 1 / 6, 0.125];   // matches LFO_SYNCS
+export const PUMP_RATES = ['1/1', '1/2', '1/4', '1/8'];
+export const PUMP_BEATS = [4, 2, 1, 0.5];                                                               // matches PUMP_RATES
+export const PUMP_WHERE = ['all', 'dry'];
 
 // ---- modulation matrix -----------------------------------------------------
 // Six slots, each a source, a destination and a bipolar amount. Every amount
@@ -36,7 +42,7 @@ export const MOD_SLOTS = 6;
 
 /** Index 0 is "off"; the rest are read per voice at control rate. */
 export const MOD_SRCS = [
-  'off', 'lfo 1', 'lfo 2', 'amp env', 'filt env', 'velocity', 'key', 'wheel', 'bend', 'random', 'network',
+  'off', 'lfo 1', 'lfo 2', 'amp env', 'filt env', 'velocity', 'key', 'wheel', 'bend', 'random', 'network', 'pump',
 ];
 
 /**
@@ -111,6 +117,7 @@ export const PARAMS: ParamDef[] = [
   // ---- LFO 1 (per voice)
   P('l1Shape', 'shape', 'lfo1', 0, 5, 0, 'enum', undefined, LFO_SHAPES),
   P('l1Rate', 'rate', 'lfo1', 0.02, 20, 5, 'log', 'Hz'),
+  P('l1Sync', 'sync', 'lfo1', 0, LFO_SYNCS.length - 1, 0, 'enum', undefined, LFO_SYNCS),
   P('l1Fade', 'fade in', 'lfo1', 0, 5, 0.6, 'lin', 's'),
   P('l1Pitch', '→ pitch', 'lfo1', 0, 100, 0, 'lin', 'ct'),
   P('l1Cut', '→ cutoff', 'lfo1', -1, 1, 0),
@@ -118,10 +125,17 @@ export const PARAMS: ParamDef[] = [
   // ---- LFO 2 (global)
   P('l2Shape', 'shape', 'lfo2', 0, 5, 1, 'enum', undefined, LFO_SHAPES),
   P('l2Rate', 'rate', 'lfo2', 0.02, 20, 0.3, 'log', 'Hz'),
+  P('l2Sync', 'sync', 'lfo2', 0, LFO_SYNCS.length - 1, 0, 'enum', undefined, LFO_SYNCS),
   P('l2Cut', '→ cutoff', 'lfo2', -1, 1, 0),
   P('l2Shape2', '→ shape', 'lfo2', 0, 1, 0),
   P('l2Pan', '→ pan', 'lfo2', 0, 1, 0),
   P('l2Amp', '→ level', 'lfo2', 0, 1, 0),
+  // ---- pump: tempo-synced ducking, the sidechain sound; off at amount 0
+  P('pumpAmt', 'amount', 'pump', 0, 1, 0),
+  P('pumpRate', 'rate', 'pump', 0, PUMP_RATES.length - 1, 2, 'enum', undefined, PUMP_RATES),
+  P('pumpRel', 'release', 'pump', 0.05, 1, 0.7),
+  P('pumpCurve', 'curve', 'pump', 0, 1, 0.4),
+  P('pumpWhere', 'ducks', 'pump', 0, 1, 0, 'enum', undefined, PUMP_WHERE),
   // ---- modulation matrix: six slots, every amount 0 by default
   ...Array.from({ length: MOD_SLOTS }, (_, i) => [
     P(`m${i + 1}Src`, 'from', 'matrix', 0, MOD_SRCS.length - 1, 0, 'enum', undefined, MOD_SRCS),
@@ -1104,6 +1118,166 @@ export const PRESETS: Preset[] = [
       chMix: 0, dlMix: 0.2, dlTime: 2, dlFb: 0.3, dlTone: 0.3,
       rvMix: 0.15, rvSize: 0.5, rvDecay: 1.2,
       warmth: 0.7, volume: 1,
+    },
+  },
+  // ------------------------------------------------ pumped: the pump and synced LFOs
+  {
+    name: 'Heartwood Pump', tag: 'synth',
+    values: {
+      aShape: 0.5, aUnison: 7, aDetune: 28, aLevel: 0.75,
+      bShape: 0.5, bOct: 1, bFine: 4, bUnison: 5, bDetune: 22, bLevel: 0.4,
+      subLevel: 0.25, spread: 0.9, drift: 0.2,
+      cutoff: 4200, res: 0.1, drive: 0.2, fEnv: 0.15, keyTrack: 0.5, hpf: 80,
+      aAtk: 0.004, aDec: 0.5, aSus: 1, aRel: 0.45,
+      fAtk: 0.004, fDec: 0.4, fSus: 0.6, fRel: 0.4,
+      pumpAmt: 0.85, pumpRate: 2, pumpRel: 0.85, pumpCurve: 0.3,
+      m1Src: 11, m1Dst: 11, m1Amt: -0.25,
+      chMix: 0.25, chDepth: 0.4,
+      dlMix: 0.18, dlTime: 3, dlFb: 0.35, dlTone: 0.55,
+      rvMix: 0.3, rvSize: 0.7, rvDecay: 2.5, rvTone: 0.6,
+      tempo: 140, warmth: 0.35, volume: 0.65,
+    },
+  },
+  {
+    name: 'Glowcap Lead', tag: 'lead',
+    values: {
+      aShape: 0.5, aUnison: 3, aDetune: 14, aLevel: 0.8,
+      bShape: 0.8, bPw: 0.3, bOct: 1, bFine: -3, bLevel: 0.35,
+      spread: 0.5, drift: 0.2,
+      cutoff: 3000, res: 0.2, drive: 0.35, fEnv: 0.3, fVel: 0.4, keyTrack: 0.6,
+      aAtk: 0.003, aDec: 0.4, aSus: 0.9, aRel: 0.3,
+      fAtk: 0.003, fDec: 0.35, fSus: 0.5, fRel: 0.3,
+      l1Rate: 5.5, l1Fade: 0.5, l1Pitch: 12,
+      voiceMode: 2, glide: 0.06, bend: 12,
+      pumpAmt: 0.35, pumpRate: 2, pumpRel: 0.6, pumpCurve: 0.4,
+      chMix: 0.2, dlMix: 0.3, dlTime: 3, dlFb: 0.4, dlTone: 0.5, dlPing: 1,
+      rvMix: 0.3, rvSize: 0.7, rvDecay: 3, rvTone: 0.6,
+      tempo: 140, warmth: 0.35, volume: 0.65,
+    },
+  },
+  {
+    name: 'Lumen Pulse', tag: 'arp',
+    values: {
+      aShape: 0.85, aPw: 0.3, aOct: 1, aLevel: 0.9,
+      bShape: 0.5, bOct: 2, bFine: 5, bLevel: 0.25,
+      spread: 0.6, drift: 0.15,
+      cutoff: 2600, res: 0.15, drive: 0.1, fEnv: 0.5, fVel: 0.5, keyTrack: 0.7,
+      aAtk: 0.001, aDec: 0.25, aSus: 0.0, aRel: 0.25, ampVel: 0.5,
+      fAtk: 0.001, fDec: 0.18, fSus: 0.0, fRel: 0.2,
+      arpMode: 3, arpRate: 5, arpOct: 2, arpGate: 0.5, tempo: 140,
+      pumpAmt: 0.6, pumpRate: 2, pumpRel: 0.8, pumpCurve: 0.35,
+      dlMix: 0.3, dlTime: 3, dlFb: 0.45, dlTone: 0.6, dlPing: 1,
+      rvMix: 0.35, rvSize: 0.8, rvDecay: 4, rvTone: 0.65, rvShimmer: 0.25,
+      warmth: 0.25, volume: 1,
+    },
+  },
+  {
+    name: 'Burrow Wobble', tag: 'bass',
+    values: {
+      aShape: 0.5, aUnison: 3, aDetune: 10, aOct: -1, aLevel: 0.8,
+      bShape: 0.95, bPw: 0.5, bOct: -1, bFine: -5, bLevel: 0.5,
+      subShape: 1, subLevel: 0.5, spread: 0.3, drift: 0.1,
+      cutoff: 220, res: 0.45, drive: 0.6, fEnv: 0.1, keyTrack: 0.3,
+      aAtk: 0.003, aDec: 0.3, aSus: 1, aRel: 0.15,
+      l1Shape: 0, l1Sync: 9, l1Fade: 0, l1Cut: 0.9,
+      voiceMode: 2, glide: 0.04,
+      pumpAmt: 0.5, pumpRate: 2, pumpRel: 0.5, pumpCurve: 0.5,
+      chMix: 0, rvMix: 0.1, rvDecay: 1.2,
+      tempo: 140, warmth: 0.5, volume: 0.7,
+    },
+  },
+  {
+    name: 'Tidewood Breath', tag: 'pad',
+    values: {
+      aShape: 0.45, aUnison: 5, aDetune: 18, aLevel: 0.7,
+      bShape: 0.3, bOct: 1, bFine: 5, bUnison: 3, bDetune: 12, bLevel: 0.35,
+      subLevel: 0.2, spread: 0.85, drift: 0.3,
+      cutoff: 1800, res: 0.12, drive: 0.15, fEnv: 0.2, keyTrack: 0.5, hpf: 60,
+      aAtk: 0.35, aDec: 1, aSus: 1, aRel: 1.8,
+      fAtk: 0.6, fDec: 1.5, fSus: 0.6, fRel: 1.5,
+      pumpAmt: 0.7, pumpRate: 1, pumpRel: 0.95, pumpCurve: 0.15, pumpWhere: 1,
+      chMix: 0.4, chDepth: 0.5,
+      rvMix: 0.4, rvSize: 0.85, rvDecay: 5, rvTone: 0.55, rvShimmer: 0.15,
+      tempo: 120, warmth: 0.4, volume: 0.7,
+    },
+  },
+  {
+    name: 'Lichen Tide', tag: 'pad',
+    values: {
+      aShape: 0.5, aUnison: 6, aDetune: 22, aLevel: 0.75,
+      bShape: 0.7, bPw: 0.35, bOct: 0, bFine: -6, bUnison: 3, bDetune: 14, bLevel: 0.4,
+      subLevel: 0.15, spread: 0.9, drift: 0.25,
+      cutoff: 1100, res: 0.3, drive: 0.2, fEnv: 0.1, keyTrack: 0.5, hpf: 70,
+      aAtk: 0.08, aDec: 1, aSus: 1, aRel: 1.2,
+      l2Shape: 0, l2Sync: 2, l2Cut: 0.45,
+      pumpAmt: 0.75, pumpRate: 2, pumpRel: 0.85, pumpCurve: 0.3,
+      chMix: 0.3, chDepth: 0.45,
+      dlMix: 0.15, dlTime: 3, dlFb: 0.35, dlTone: 0.5,
+      rvMix: 0.35, rvSize: 0.75, rvDecay: 3.5, rvTone: 0.6,
+      tempo: 128, warmth: 0.35, volume: 0.65,
+    },
+  },
+  {
+    name: 'Lantern Keys', tag: 'keys',
+    values: {
+      aShape: 0.15, aLevel: 0.8,
+      bShape: 0.75, bPw: 0.4, bOct: 1, bFine: 4, bLevel: 0.3,
+      subLevel: 0.2, spread: 0.5, drift: 0.2,
+      cutoff: 1600, res: 0.1, drive: 0.15, fEnv: 0.45, fVel: 0.6, keyTrack: 0.7,
+      aAtk: 0.002, aDec: 1.6, aSus: 0.45, aRel: 0.6, ampVel: 0.6,
+      fAtk: 0.001, fDec: 0.7, fSus: 0.2, fRel: 0.5,
+      pumpAmt: 0.55, pumpRate: 2, pumpRel: 0.8, pumpCurve: 0.35, pumpWhere: 1,
+      chMix: 0.45, chRate: 0.7, chDepth: 0.4,
+      dlMix: 0.2, dlTime: 3, dlFb: 0.35, dlTone: 0.45, dlPing: 1,
+      rvMix: 0.3, rvSize: 0.65, rvDecay: 2.5, rvTone: 0.55,
+      tempo: 116, warmth: 0.4, volume: 0.8,
+    },
+  },
+  {
+    name: 'Dew Chords', tag: 'pluck',
+    values: {
+      aShape: 0.5, aUnison: 4, aDetune: 16, aLevel: 0.8,
+      bShape: 0.5, bOct: 1, bFine: 3, bUnison: 2, bDetune: 10, bLevel: 0.3,
+      spread: 0.8, drift: 0.2,
+      cutoff: 900, res: 0.2, drive: 0.2, fEnv: 0.65, fVel: 0.5, keyTrack: 0.6,
+      aAtk: 0.002, aDec: 0.6, aSus: 0.0, aRel: 0.45, ampVel: 0.5,
+      fAtk: 0.001, fDec: 0.25, fSus: 0.0, fRel: 0.3,
+      pumpAmt: 0.6, pumpRate: 3, pumpRel: 0.9, pumpCurve: 0.4, pumpWhere: 1,
+      chMix: 0.3, dlMix: 0.3, dlTime: 3, dlFb: 0.45, dlTone: 0.5, dlPing: 1,
+      rvMix: 0.35, rvSize: 0.7, rvDecay: 3, rvTone: 0.6,
+      tempo: 124, warmth: 0.3, volume: 1,
+    },
+  },
+  {
+    name: 'Glimmer Steps', tag: 'arp',
+    values: {
+      aShape: 0.3, aOct: 1, aLevel: 0.85,
+      bShape: 0.6, bPw: 0.25, bOct: 2, bFine: -4, bLevel: 0.2,
+      spread: 0.7, drift: 0.15,
+      cutoff: 1500, res: 0.25, drive: 0.1, fEnv: 0.4, fVel: 0.4, keyTrack: 0.7,
+      aAtk: 0.001, aDec: 0.35, aSus: 0.0, aRel: 0.4, ampVel: 0.5,
+      fAtk: 0.001, fDec: 0.25, fSus: 0.0, fRel: 0.3,
+      l2Shape: 1, l2Sync: 1, l2Cut: 0.4,
+      arpMode: 1, arpRate: 4, arpOct: 2, arpGate: 0.45, tempo: 110,
+      pumpAmt: 0.45, pumpRate: 2, pumpRel: 0.8, pumpCurve: 0.35,
+      dlMix: 0.3, dlTime: 4, dlFb: 0.4, dlTone: 0.5, dlPing: 1,
+      rvMix: 0.4, rvSize: 0.8, rvDecay: 4.5, rvTone: 0.6, rvShimmer: 0.2,
+      warmth: 0.3, volume: 1,
+    },
+  },
+  {
+    name: 'Pulsing Loam', tag: 'bass',
+    values: {
+      aShape: 0.5, aOct: -1, aUnison: 2, aDetune: 8, aLevel: 0.8,
+      bShape: 0.0, bOct: -1, bLevel: 0.4,
+      subShape: 0, subLevel: 0.6, spread: 0.2, drift: 0.1,
+      cutoff: 380, res: 0.2, drive: 0.35, fEnv: 0.3, fVel: 0.3, keyTrack: 0.3,
+      aAtk: 0.003, aDec: 0.4, aSus: 1, aRel: 0.2,
+      fAtk: 0.002, fDec: 0.3, fSus: 0.3, fRel: 0.2,
+      voiceMode: 1,
+      pumpAmt: 0.8, pumpRate: 2, pumpRel: 0.75, pumpCurve: 0.55,
+      chMix: 0, rvMix: 0.08, rvDecay: 1,
+      tempo: 124, warmth: 0.45, volume: 0.62,
     },
   },
   // ----------------------------------------------- living: the "on top" layers

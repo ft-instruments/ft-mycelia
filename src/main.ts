@@ -149,7 +149,7 @@ const LAYER_ON: Record<string, (v: ParamValues) => boolean> = {
  */
 const TABS: { id: string; name: string; hint: string }[] = [
   { id: 'voice', name: 'voice', hint: 'oscillators · filter · envelopes' },
-  { id: 'motion', name: 'motion', hint: 'lfos · matrix · arpeggiator' },
+  { id: 'motion', name: 'motion', hint: 'lfos · pump · arp · matrix' },
   { id: 'space', name: 'space', hint: 'ensemble · delay · canopy · out' },
   { id: 'living', name: 'living', hint: 'network · garden · rot · climate' },
 ];
@@ -179,9 +179,10 @@ const LAYOUT: PanelSpec[] = [
   { tab: 'voice', title: 'Voice', sub: 'allocation · glide', cls: 'voice', span: 3, viz: 'voicing', groups: [{ ids: ['voiceMode', 'glide', 'poly', 'bend'] }] },
 
   // ---- motion: what moves it
-  { tab: 'motion', title: 'LFO 1', sub: 'per voice', cls: 'lfo', span: 3, viz: 'lfo1', groups: [{ ids: ['l1Shape', 'l1Rate', 'l1Fade', 'l1Pitch', 'l1Cut', 'l1Pw'] }] },
-  { tab: 'motion', title: 'LFO 2', sub: 'global', cls: 'lfo', span: 3, viz: 'lfo2', groups: [{ ids: ['l2Shape', 'l2Rate', 'l2Cut', 'l2Shape2', 'l2Pan', 'l2Amp'] }] },
-  { tab: 'motion', title: 'Arp', sub: 'internal clock', cls: 'arp', span: 6, viz: 'arp', groups: [{ ids: ['arpMode', 'arpRate', 'arpOct', 'arpGate', 'arpSwing', 'arpHold', 'tempo'] }] },
+  { tab: 'motion', title: 'LFO 1', sub: 'per voice', cls: 'lfo', span: 3, viz: 'lfo1', groups: [{ ids: ['l1Shape', 'l1Rate', 'l1Sync', 'l1Fade', 'l1Pitch', 'l1Cut', 'l1Pw'] }] },
+  { tab: 'motion', title: 'LFO 2', sub: 'global', cls: 'lfo', span: 3, viz: 'lfo2', groups: [{ ids: ['l2Shape', 'l2Rate', 'l2Sync', 'l2Cut', 'l2Shape2', 'l2Pan', 'l2Amp'] }] },
+  { tab: 'motion', title: 'Pump', sub: 'synced ducking', cls: 'pump', span: 2, viz: 'pump', groups: [{ hero: true, ids: ['pumpAmt'] }, { ids: ['pumpRate', 'pumpRel', 'pumpCurve', 'pumpWhere'] }] },
+  { tab: 'motion', title: 'Arp', sub: 'internal clock', cls: 'arp', span: 4, viz: 'arp', groups: [{ ids: ['arpMode', 'arpRate', 'arpOct', 'arpGate', 'arpSwing', 'arpHold', 'tempo'] }] },
   { tab: 'motion', title: 'Matrix', sub: 'six slots · anything to anywhere in the voice', cls: 'matrix wide', span: 12,
     groups: Array.from({ length: MOD_SLOTS }, (_, i) => ({ title: String(i + 1), cls: 'slot', ids: [`m${i + 1}Src`, `m${i + 1}Dst`, `m${i + 1}Amt`] })) },
 

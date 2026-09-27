@@ -47,6 +47,7 @@ body {
 .panel.voice  { --accent: var(--mint); }
 .panel.lfo    { --accent: var(--magenta); }
 .panel.arp    { --accent: var(--coral); }
+.panel.pump   { --accent: var(--coral); }
 .panel.matrix { --accent: var(--magenta); }
 .panel.fx     { --accent: var(--cyan); }
 .panel.out    { --accent: var(--violet); }

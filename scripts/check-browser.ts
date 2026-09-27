@@ -90,6 +90,13 @@ async function main(): Promise<void> {
   await sleep(700);
   const lshot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true }) as { data: string };
   writeFileSync('out/screenshot-living-on.png', Buffer.from(lshot.data, 'base64'));
+  // the pump and a synced LFO, on the motion tab
+  await evaluate("window.__mycelia.loadPreset('Heartwood Pump'); document.querySelectorAll('#tabs .tab')[1].click()");
+  await sleep(500);
+  const pshot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true }) as { data: string };
+  writeFileSync('out/screenshot-motion-pump.png', Buffer.from(pshot.data, 'base64'));
+  await evaluate("document.querySelectorAll('#tabs .tab')[3].click()");
+  await sleep(300);
   const head = await send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: 1400, height: 110, scale: 1 } }) as { data: string };
   writeFileSync('out/screenshot-header.png', Buffer.from(head.data, 'base64'));
   // the preset browser, and a count of what it holds
@@ -127,7 +134,7 @@ async function main(): Promise<void> {
   await sleep(500);
   const awake = await evaluate('document.querySelector("#start-label").textContent');
   console.log(`power: "${asleep}" then "${awake}"`);
-  console.log('wrote out/screenshot-{voice,motion,space,living,browser}.png');
+  console.log('wrote out/screenshot-{voice,motion,motion-pump,space,living,browser}.png');
   const errors = logs.filter((l) => l.startsWith('[error]') || l.startsWith('[exception]'));
   for (const l of logs) console.log('  console', l);
   if (errors.length) { console.error(`${errors.length} console error(s)`); process.exitCode = 1; }

@@ -12,6 +12,7 @@ import {
   MOD_SLOTS, MOD_SRC_IDS, MOD_DST_IDS, MOD_AMT_IDS, MOD_DSTS,
   DST_PITCH, DST_SHAPE_A, DST_SHAPE_B, DST_SHAPE_BOTH, DST_WIDTH_A, DST_WIDTH_B, DST_DETUNE,
   DST_LEVEL_A, DST_LEVEL_B, DST_SUB, DST_NOISE, DST_CUTOFF, DST_RES, DST_DRIVE, DST_AMP, DST_PAN,
+  LFO_SYNC_BEATS,
 } from './params.ts';
 import type { ParamValues } from './params.ts';
 
@@ -22,6 +23,7 @@ export interface GlobalMod {
   lfo2: number;      // -1..1
   bend: number;      // semitones
   modWheel: number;  // 0..1, adds to LFO1 pitch depth
+  pump: number;      // 0..1, how far down the pump's duck is (as a matrix source)
 }
 
 export class Voice {
@@ -97,7 +99,7 @@ export class Voice {
         this.oscA.start(); this.oscB.start(); this.sub.start();
         this.filtL.reset(); this.filtR.reset();
         this.gainSm = 0;
-        this.updateControl(p, { lfo2: 0, bend: 0, modWheel: 0 }, true);
+        this.updateControl(p, { lfo2: 0, bend: 0, modWheel: 0, pump: 0 }, true);
         this.filtL.snap(); this.filtR.snap();
       }
     }
@@ -152,7 +154,8 @@ export class Voice {
         case 7: s = g.modWheel; break;                            //  0..1
         case 8: s = p.bend > 0 ? g.bend / p.bend : 0; break;      // -1..1
         case 9: s = this.rnd; break;                              // -1..1, one per note
-        default: s = Math.min(1, this.netInfl); break;            //  0..1
+        case 10: s = Math.min(1, this.netInfl); break;            //  0..1
+        default: s = g.pump; break;                               //  0..1, 1 at the bottom of the duck
       }
       const x = s * amt;
       const dst = p[MOD_DST_IDS[i]] | 0;
@@ -173,7 +176,10 @@ export class Voice {
     // LFO 1 with fade-in
     this.lfoAge += dtc;
     const fade = p.l1Fade > 0 ? Math.min(1, this.lfoAge / p.l1Fade) : 1;
-    const l1 = this.lfo1.tick(p.l1Shape as LfoShape, p.l1Rate * dtc) * fade;
+    // synced: the rate follows the tempo; the phase still restarts at note-on
+    const sync = p.l1Sync | 0;
+    const rate = sync > 0 ? p.tempo / (60 * LFO_SYNC_BEATS[sync]) : p.l1Rate;
+    const l1 = this.lfo1.tick(p.l1Shape as LfoShape, rate * dtc) * fade;
     this.lfo1Value = l1;
     const l2 = g.lfo2;
     // the matrix, before anything reads a parameter it can reach
