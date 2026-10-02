@@ -229,7 +229,7 @@ export class Scope {
   }
   private resize(): void {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const r = this.canvas.getBoundingClientRect();
+    const r = { width: this.canvas.clientWidth, height: this.canvas.clientHeight };   // layout size: the plugin scales the page
     this.canvas.width = Math.round(r.width * dpr); this.canvas.height = Math.round(r.height * dpr);
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.draw();
@@ -237,8 +237,7 @@ export class Scope {
   update(data: Float32Array, peak: number): void { this.data = data; this.peak = peak; this.draw(); }
   draw(): void {
     const ctx = this.ctx;
-    const r = this.canvas.getBoundingClientRect();
-    const W = r.width, H = r.height;
+    const W = this.canvas.clientWidth, H = this.canvas.clientHeight;
     ctx.clearRect(0, 0, W, H);
     const d = this.data, n = d.length;
     // find a rising zero crossing in the first half to stabilise the trace

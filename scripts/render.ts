@@ -6,6 +6,7 @@
 //   node scripts/render.ts note 60 100      -> out/note.wav (init patch, one note)
 //   node scripts/render.ts bench            -> CPU timing only
 //   node scripts/render.ts spectrum 84      -> harmonic / alias check of a raw saw at that note
+//   node scripts/render.ts raw [dir]        -> <dir>/<preset>.f32, raw float32 stereo, for scripts/null-test.ts
 
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { MyceliaEngine } from '../src/dsp/engine.ts';
@@ -164,6 +165,19 @@ if (mode === 'onset') {
   let worst = -200;
   for (let f = f0 * 1.1; f < f0 * 1.9; f += f0 * 0.02) worst = Math.max(worst, 20 * Math.log10(mag(f) / h1));
   console.log(`worst alias between h1 and h2: ${worst.toFixed(1)} dB re h1`);
+} else if (mode === 'raw') {
+  // the same phrases as the default mode, unquantised, to compare against the C++ engine
+  const dir = process.argv[3] ?? `${outDir}/ts`;
+  mkdirSync(dir, { recursive: true });
+  for (const pr of PRESETS) {
+    const e = new MyceliaEngine(FS);
+    e.loadPreset(pr.values);
+    const [L, R] = phrase(e, 8);
+    const inter = new Float32Array(L.length * 2);
+    for (let i = 0; i < L.length; i++) { inter[2 * i] = L[i]; inter[2 * i + 1] = R[i]; }
+    writeFileSync(`${dir}/${pr.name.toLowerCase().replace(/\s+/g, '-')}.f32`, new Uint8Array(inter.buffer));
+  }
+  console.log(`wrote ${PRESETS.length} presets to ${dir}`);
 } else {
   for (const pr of PRESETS) {
     const e = new MyceliaEngine(FS);

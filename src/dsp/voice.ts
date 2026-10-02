@@ -7,7 +7,7 @@ import { OscBank, SubOsc, Noise } from './osc.ts';
 import { Ladder } from './ladder.ts';
 import { ADSR, Stage } from './env.ts';
 import { LFO, LfoShape } from './lfo.ts';
-import { midiToFreq, clamp } from './util.ts';
+import { midiToFreq, clamp, Rng } from './util.ts';
 import {
   MOD_SLOTS, MOD_SRC_IDS, MOD_DST_IDS, MOD_AMT_IDS, MOD_DSTS,
   DST_PITCH, DST_SHAPE_A, DST_SHAPE_B, DST_SHAPE_BOTH, DST_WIDTH_A, DST_WIDTH_B, DST_DETUNE,
@@ -60,6 +60,7 @@ export class Voice {
   private mod = new Float32Array(MOD_DSTS.length);
   private modWasOn = false;   // so the accumulators get cleared once when it goes quiet
   private rnd = 0;            // one random value per note-on, as a matrix source
+  private rndGen: Rng;        // seeded, so offline renders repeat
 
   constructor(sampleRate: number, seed: number) {
     this.fs = sampleRate;
@@ -71,6 +72,7 @@ export class Voice {
     this.ampEnv = new ADSR(sampleRate);
     this.filtEnv = new ADSR(sampleRate);
     this.lfo1 = new LFO(seed * 7 + 4);
+    this.rndGen = new Rng(seed * 7 + 5);
   }
 
   get active(): boolean { return this.ampEnv.active; }
@@ -86,7 +88,7 @@ export class Voice {
     this.age = 0;
     this.released = false;
     this.pitchTarget = note;
-    if (retrigger) this.rnd = Math.random() * 2 - 1;
+    if (retrigger) this.rnd = this.rndGen.bi();
     if (Number.isNaN(glideFrom) || p.glide <= 0) this.pitch = note;
     else this.pitch = glideFrom;
     if (retrigger) {

@@ -128,21 +128,56 @@ JetBrains Mono. Four views (`1`–`4`): **voice**, **motion**, **space** and
 Siege and Vector, as are the knobs and the keyboard, which reads its colours
 from `--key-*` custom properties.
 
-## Porting to a plugin (JUCE)
+## The plugin (VST3 / AU)
 
-- `MyceliaEngine(sampleRate)` ↔ `prepareToPlay`
-- `noteOn / noteOff / controlChange / pitchBend` ↔ the MIDI buffer in `processBlock`
-- `process(L, R, n)` ↔ the audio buffer (any `n`; it chunks internally in 32s)
-- `setParam(id, value)` ↔ `AudioProcessorValueTreeState`, using `PARAMS` as the list
-- the arp, delay, pump and synced LFOs use the internal `tempo` and beat clock; in a plugin, feed them the host tempo and PPQ position instead
+`plugin/` builds MYCELIA as a **VST3** (macOS and Linux), an **AU** (macOS,
+for Logic) and a standalone app, with JUCE 8 (fetched by CMake).
 
-No allocation on the audio thread; all state is typed arrays and scalars.
-About 1 % of one core per voice at 48 kHz in V8 (≈13 % for ten voices of the
-fattest preset, effects included); expect the C++ version to run 3–5× faster.
+```
+plugin/build.sh      # web UI + params header + plugins, installed for this user
+```
+
+It installs to `~/Library/Audio/Plug-Ins/{VST3,Components}` on macOS and
+`~/.vst3` on Linux. On macOS check the AU with `auval -v aumu Myca Ftft`.
+On Linux it needs the usual JUCE packages plus WebKitGTK, e.g. on Debian /
+Ubuntu:
+
+```
+sudo apt install build-essential cmake ninja-build nodejs npm pkg-config \
+  libasound2-dev libfreetype-dev libfontconfig1-dev libx11-dev libxcomposite-dev \
+  libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev \
+  libgtk-3-dev libwebkit2gtk-4.1-dev libglu1-mesa-dev
+```
+
+- **DSP**: `plugin/Source/dsp/` is a line-for-line C++ port of `src/dsp/`.
+  Buffers the TS keeps in `Float32Array`s are `float`, everything else is
+  `double`, so the two engines agree to rounding: `node scripts/null-test.ts`
+  renders every preset with both and subtracts (68 of 72 are bit-identical,
+  the rest differ by ≤ −136 dB, last-bit differences in `pow` / `sin`). The
+  arp and the garden use fixed arrays instead of JS arrays, sets and maps;
+  nothing allocates on the audio thread. About twice as fast as V8.
+- **Parameters**: `Params.gen.h` is generated from `params.ts`
+  (`node scripts/gen-plugin.ts`, run by `build.sh`), so the host sees the same
+  119 parameters with the same knob curves and value text. Everything is
+  automatable. The factory bank is the host's program list (Logic's preset
+  menu).
+- **UI**: the web UI itself (`dist/`, embedded in the binary) in a WebView;
+  `src/plugin.ts` stands in for the AudioWorklet and talks to
+  `PluginEditor.cpp` over JUCE's event bridge. Knobs become host parameter
+  changes, host automation moves the knobs, host MIDI lights the keys. Your
+  saved presets are a file shared by every instance
+  (`~/Library/Application Support/FT/Mycelia/` or `~/.config/FT/Mycelia/`).
+- **Clock**: the host's tempo replaces the tempo knob, and while the host
+  plays, its song position drives the beat clock, so the pump and synced
+  LFO 2 lock to the bar. The arp and the garden run at the host tempo but
+  start from the note you play, not the grid.
+
+After changing anything in `src/dsp/`, port it to `plugin/Source/dsp/` and
+run the null test.
 
 ## Known limitations / next steps
 
 - No hard sync, FM or ring mod (on purpose — it's an analogue-flavoured instrument), and no modulation matrix beyond the fixed routings.
 - The resonance compensation and drive were set by measurement, not by ear; the filter loses some resonance above ~6 kHz.
-- Arp, delay, pump and synced LFOs follow the internal clock only; in a plugin they should follow the host's tempo and song position.
+- In the plugin, the arp and the garden follow the host's tempo but not its grid (a step starts when you play, not on the beat).
 - Presets can be copied as JSON but not saved in the browser yet.

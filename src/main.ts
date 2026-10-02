@@ -1,4 +1,6 @@
 import { Synth } from './audio.ts';
+import { PluginSynth, inPlugin } from './plugin.ts';
+import type { WorkletStats } from './worklet/processor.ts';
 import { MidiInput } from './midi.ts';
 import { KeyboardView, ComputerKeys, FIRST, LAST } from './keyboard.ts';
 import { Organism, Scope } from './ui/organism.ts';
@@ -8,7 +10,10 @@ import { PARAMS, PARAM_BY_ID, PRESETS, defaults, fromNorm, toNorm, MOD_SLOTS, ty
 
 const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel) as T;
 
-const synth = new Synth();
+// In the plugin's WebView the host owns audio and MIDI; the page is just the editor.
+const plugin = inPlugin() ? new PluginSynth() : null;
+const synth: Synth | PluginSynth = plugin ?? new Synth();
+document.documentElement.classList.toggle('in-plugin', !!plugin);
 const values: ParamValues = defaults();
 const controls = new Map<string, Control>();
 
@@ -323,6 +328,7 @@ const catRank = (tag: string) => { const i = CATEGORY_ORDER.indexOf(tag); return
 // ---- your presets: kept in this browser's storage, as diffs from the defaults
 const USER_KEY = 'mycelia.user-presets';
 function readUser(): Preset[] {
+  if (plugin) return [];   // they arrive with the plugin's state
   try {
     const raw = JSON.parse(localStorage.getItem(USER_KEY) ?? '[]') as { name: string; values: Partial<ParamValues> }[];
     return raw.filter((p) => typeof p?.name === 'string' && p.values).map((p) => ({ name: p.name, tag: 'user', values: p.values }));
@@ -330,6 +336,7 @@ function readUser(): Preset[] {
 }
 let userPresets = readUser();
 function writeUser(): void {
+  if (plugin) { plugin.saveUser(userPresets.map((p) => ({ name: p.name, values: p.values }))); return; }
   try { localStorage.setItem(USER_KEY, JSON.stringify(userPresets.map((p) => ({ name: p.name, values: p.values })))); }
   catch { /* private mode: they last until the page closes */ }
 }
@@ -355,14 +362,16 @@ function setCurrent(name: string | null): void {
   tagEl.textContent = p ? (CATEGORY_NAMES[p.tag] ?? p.tag) : 'edited';
   tagEl.dataset.tag = p ? p.tag : 'edited';
   for (const [n, card] of cards) card.classList.toggle('on', n === name);
+  plugin?.setCurrent(name);
 }
 
-function applyValues(next: ParamValues): void {
+/** Show a whole sound; `fromHost` when it came from the plugin and must not be sent back. */
+function applyValues(next: ParamValues, fromHost = false): void {
   for (const def of PARAMS) {
     values[def.id] = next[def.id];
     controls.get(def.id)?.set(next[def.id]);
   }
-  synth.loadPreset(values);
+  if (!fromHost) synth.loadPreset(values);
   setMaster(values.volume);
   refreshLayers(true);
   redrawViz();
@@ -581,9 +590,11 @@ let startTab = 'voice';
 try { startTab = localStorage.getItem('mycelia.tab') ?? startTab; } catch { /* ignore */ }
 showTab(TABS.some((t) => t.id === startTab) ? startTab : 'voice');
 
-let initial = browseOrder.find((p) => p.tag !== 'user')!.name;
-try { initial = localStorage.getItem('mycelia.preset') ?? initial; } catch { /* ignore */ }
-loadPreset(findPreset(initial) ? initial : PRESETS[0].name);
+if (!plugin) {
+  let initial = browseOrder.find((p) => p.tag !== 'user')!.name;
+  try { initial = localStorage.getItem('mycelia.preset') ?? initial; } catch { /* ignore */ }
+  loadPreset(findPreset(initial) ? initial : PRESETS[0].name);
+}
 
 // ---- MIDI ------------------------------------------------------------------
 
@@ -607,16 +618,19 @@ midi.onPortsChanged = (ports) => {
   midiSel.value = ports.some((p) => p.id === cur) ? cur : 'all';
 };
 midiSel.addEventListener('change', () => midi.select(midiSel.value as string | 'all'));
-midi.init().then((ok) => {
-  if (!ok) midiSel.innerHTML = `<option>${MidiInput.supported ? 'MIDI denied' : 'no Web MIDI'}</option>`;
-});
+if (!plugin) {
+  midi.init().then((ok) => {
+    if (!ok) midiSel.innerHTML = `<option>${MidiInput.supported ? 'MIDI denied' : 'no Web MIDI'}</option>`;
+  });
+}
 
 // ---- stats -----------------------------------------------------------------
 
 const stats = $('#stats');
 let lastPeak = 0;
-synth.onStats = (s) => {
-  stats.textContent = `${s.voices} voices · ${Math.round(s.load * 100)}% dsp`;
+synth.onStats = (s: WorkletStats & { tempo?: number }) => {
+  const host = s.tempo ? ` · ${Math.round(s.tempo)} bpm` : '';
+  stats.textContent = `${s.voices} voices · ${Math.round(s.load * 100)}% dsp${host}`;
   const peak = Math.max(s.peakL, s.peakR);
   lastPeak = peak;
   scope.update(s.scope, peak);
@@ -624,3 +638,36 @@ synth.onStats = (s) => {
 };
 // expose for the headless check
 (window as unknown as { __mycelia: unknown }).__mycelia = { synth, values, peak: () => lastPeak, loadPreset };
+
+// ---- inside the plugin -------------------------------------------------------
+
+if (plugin) {
+  // the session's sound (on open, and whenever the host loads a state or a program)
+  plugin.onState = (st) => {
+    userPresets = st.user.map((p) => ({ name: p.name, tag: 'user', values: p.values }));
+    sortPresets(); buildBrowser();
+    applyValues({ ...defaults(), ...st.values } as ParamValues, true);
+    lastLoaded = st.last || null;
+    current = '\u0000';   // force the header to redraw
+    setCurrent(st.preset || null);
+  };
+  // automation and the host's own editor
+  plugin.onParams = (changed) => {
+    for (const id in changed) {
+      const v = changed[id]!;
+      values[id] = v;
+      controls.get(id)?.set(v);
+      if (id === 'volume') setMaster(v);
+    }
+    refreshLayers();
+    redrawViz();
+  };
+  // the host's MIDI lights the keys and the network, like a keyboard on the page would
+  plugin.onHostNotes = (notes) => {
+    for (const [note, velocity, kind] of notes) {
+      keyboard.setPressed(note, kind === 0);
+      if (kind === 0) organism.pulse(note, velocity);
+    }
+  };
+  plugin.ready();
+}
