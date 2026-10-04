@@ -79,6 +79,8 @@ body {
 [data-tag="lead"]    { --tagc: var(--coral); }
 [data-tag="bass"]    { --tagc: var(--moss); }
 [data-tag="arp"]     { --tagc: var(--magenta); }
+[data-tag="seq"]     { --tagc: color-mix(in srgb, var(--magenta) 50%, var(--violet)); }
+[data-tag="fx"]      { --tagc: color-mix(in srgb, var(--cyan) 50%, var(--violet)); }
 [data-tag="texture"] { --tagc: var(--violet); }
 [data-tag="living"]  { --tagc: var(--lime); }
 [data-tag="drum"]    { --tagc: #ff6a6a; }
