@@ -23,6 +23,9 @@ FetchContent_Declare(JUCE
   GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(JUCE)
 
+# Copy the built plugins into the user's plugin folders (off in CI).
+option(MYCELIA_INSTALL "Install the plugins after building" ON)
+
 set(MYCELIA_FORMATS VST3 Standalone)
 if(APPLE)
   list(APPEND MYCELIA_FORMATS AU)
@@ -44,7 +47,8 @@ juce_add_plugin(Mycelia
   NEEDS_WEB_BROWSER TRUE
   VST3_CATEGORIES Instrument Synth
   AU_MAIN_TYPE kAudioUnitType_MusicDevice
-  COPY_PLUGIN_AFTER_BUILD TRUE)
+  NEEDS_WEBVIEW2 TRUE
+  COPY_PLUGIN_AFTER_BUILD ${MYCELIA_INSTALL})
 
 target_sources(Mycelia PRIVATE
   Source/PluginProcessor.cpp
