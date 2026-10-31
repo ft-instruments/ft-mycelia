@@ -71,7 +71,7 @@ class Pen {
 
   text(s: string, x: number, y: number, align: CanvasTextAlign = 'left', a = 0.5): void {
     const { ctx } = this;
-    ctx.font = '500 9px "Geist Mono", ui-monospace, monospace';
+    ctx.font = '500 9px "Geist Mono", "FT Symbols", ui-monospace, monospace';
     s = s.toUpperCase();
     ctx.textAlign = align; ctx.fillStyle = `rgba(255, 255, 255, ${a})`;
     ctx.fillText(s, x, y);
