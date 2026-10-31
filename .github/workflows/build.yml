@@ -74,7 +74,7 @@ jobs:
           out="$PWD/Mycelia-${ver}-${{ matrix.name }}.zip"
           cd plugin/build/Mycelia_artefacts/Release
           if [[ "$RUNNER_OS" == "Windows" ]]; then 7z a "$out" VST3 Standalone; else zip -r -y "$out" VST3 Standalone $( [[ "$RUNNER_OS" == "macOS" ]] && echo AU ); fi
-          echo "ZIP=$out" >> "$GITHUB_ENV"
+          echo "ZIP=$(basename "$out")" >> "$GITHUB_ENV"
 
       - uses: actions/upload-artifact@v4
         with:
