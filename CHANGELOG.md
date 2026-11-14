@@ -28,6 +28,6 @@ First tracked release. The version file already said 0.1.0, so this tags the pro
 - AU / VST plugin build under `plugin/`.
 - The header width stays steady as the DSP readout changes digits.
 
-[Unreleased]: https://github.com/filipefthomaz-gd/ft-mycelia/compare/v0.1.1...HEAD
-[0.1.1]: https://github.com/filipefthomaz-gd/ft-mycelia/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/filipefthomaz-gd/ft-mycelia/releases/tag/v0.1.0
+[Unreleased]: https://github.com/ft-instruments/ft-mycelia/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/ft-instruments/ft-mycelia/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/ft-instruments/ft-mycelia/releases/tag/v0.1.0

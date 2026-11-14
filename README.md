@@ -30,7 +30,7 @@ header, next to the meter.
 
 Builds of the VST3, the AU (macOS only) and the standalone app for macOS,
 Windows and Linux are attached to each
-[release](https://github.com/filipefthomaz-gd/ft-mycelia/releases).
+[release](https://github.com/ft-instruments/ft-mycelia/releases).
 
 | | Standalone | VST3 | AU |
 |---|---|---|---|
