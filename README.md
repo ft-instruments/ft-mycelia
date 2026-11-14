@@ -216,6 +216,8 @@ run the null test.
 
 ## License
 
+Copyright (C) 2026 Filipe F. Thomaz.
+
 MYCELIA is free software under the [GNU AGPL v3](LICENSE). The plugin is built
 on [JUCE](https://juce.com), which is itself AGPLv3 (or commercial), so the
 whole thing is distributed under the AGPL (the bundled fonts keep their own
