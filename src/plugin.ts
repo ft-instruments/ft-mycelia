@@ -20,7 +20,7 @@ const backend = (): JuceBackend | undefined =>
  * scaled as a whole to fit the editor window; the editor's default size keeps
  * this aspect (PluginEditor.cpp).
  */
-export const UI_W = 1360, UI_H = 1080;
+export const UI_W = 1360, UI_H = 850;
 
 /** Scale the laid-out page to the window, centred when the window is wider than the design. */
 function fitToWindow(): void {
@@ -29,6 +29,13 @@ function fitToWindow(): void {
   root.setProperty('--ui-w', `${UI_W}px`);
   root.setProperty('--ui-scale', String(s));
   root.setProperty('--ui-x', `${Math.max(0, (window.innerWidth - UI_W * s) / 2)}px`);
+}
+
+/** Dev only (`npm run dev`, then open /?plugin): lay the page out as the plugin does, in a browser tab. Audio stays the browser's. */
+export function previewPluginLayout(): void {
+  document.documentElement.classList.add('in-plugin', 'preview');
+  fitToWindow();
+  window.addEventListener('resize', fitToWindow);
 }
 
 /** True when the page is the plugin's editor. */
