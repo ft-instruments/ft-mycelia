@@ -2,7 +2,7 @@
 
 **MYCELIA** — a bioluminescent virtual-analogue polysynth. Pads, rich layered
 synths, arpeggios; warm rather than harsh. Runs in the browser, written so the
-DSP core lifts straight into a VST3/AU plugin (same shape as `ft-piano`).
+DSP core lifts straight into a VST3/AU plugin.
 
 ```
 npm install
@@ -156,9 +156,8 @@ with an accent per family (lime for the oscillators, cyan for the filter,
 amber for the envelopes, magenta for the LFOs and matrix), Rajdhani and
 JetBrains Mono. Four views (`1`–`4`): **voice**, **motion**, **space** and
 **living**; the four living layers fold to one line while they are off
-(click the header to open one). The preset browser (`` ` ``) is shared with
-Siege and Vector, as are the knobs and the keyboard, which reads its colours
-from `--key-*` custom properties.
+(click the header to open one). The keyboard reads its colours from
+`--key-*` custom properties.
 
 ## The plugin (VST3 / AU)
 
@@ -196,7 +195,10 @@ sudo apt install build-essential cmake ninja-build nodejs npm pkg-config \
 - **UI**: the web UI itself (`dist/`, embedded in the binary) in a WebView;
   `src/plugin.ts` stands in for the AudioWorklet and talks to
   `PluginEditor.cpp` over JUCE's event bridge. Knobs become host parameter
-  changes, host automation moves the knobs, host MIDI lights the keys. Your
+  changes, host automation moves the knobs, host MIDI lights the keys. The
+  page is laid out at 1360 × 850 (16:10) and scaled to fit the window, with
+  no scrolling; a new window opens as large as fits the screen, up to that
+  size, and you can resize it. Your
   saved presets are a file shared by every instance
   (`~/Library/Application Support/FT/Mycelia/` or `~/.config/FT/Mycelia/`).
 - **Clock**: the host's tempo replaces the tempo knob, and while the host

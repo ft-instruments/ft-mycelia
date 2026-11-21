@@ -125,7 +125,7 @@ async function main(): Promise<void> {
   await evaluate(`window.__toPage({ type: 'notes', list: [[64, 100, 0], [67, 90, 2]] });
     window.__toPage({ type: 'stats', voices: 3, load: 0.042, peakL: 0.5, peakR: 0.4, tempo: 122, scope: Array.from({ length: 1024 }, (_, i) => Math.sin(i / 20) * 0.5) })`);
   await sleep(100);
-  check(String(await evaluate("document.querySelector('#stats').textContent")).includes('122 bpm'), 'the host tempo shows in the status line');
+  check(String(await evaluate("document.querySelector('#tempo')?.textContent")).includes('122 bpm'), 'the host tempo shows in the status line, beside the stop button');
 
   // 8. saving a sound goes to the plugin's file
   await evaluate('document.querySelector("#save").click()');

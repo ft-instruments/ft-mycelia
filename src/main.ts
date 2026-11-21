@@ -1,5 +1,5 @@
 import { Synth } from './audio.ts';
-import { PluginSynth, inPlugin } from './plugin.ts';
+import { PluginSynth, inPlugin, previewPluginLayout } from './plugin.ts';
 import type { WorkletStats } from './worklet/processor.ts';
 import { MidiInput } from './midi.ts';
 import { KeyboardView, ComputerKeys, FIRST, LAST } from './keyboard.ts';
@@ -14,6 +14,10 @@ const $ = <T extends HTMLElement>(sel: string): T => document.querySelector(sel)
 const plugin = inPlugin() ? new PluginSynth() : null;
 const synth: Synth | PluginSynth = plugin ?? new Synth();
 document.documentElement.classList.toggle('in-plugin', !!plugin);
+// dev only: ?plugin shows the plugin's layout in a browser tab (real audio, resize the window to see it scale)
+if (import.meta.env.DEV && !plugin && new URLSearchParams(location.search).has('plugin')) previewPluginLayout();
+// in the plugin every page fits whole, so nothing folds: modules stay open whatever their level
+const NO_FOLD = document.documentElement.classList.contains('in-plugin');
 const values: ParamValues = defaults();
 const controls = new Map<string, Control>();
 
@@ -213,6 +217,7 @@ function onParam(id: string, v: number): void {
   setCurrent(null);
   if (id === 'volume') setMaster(v);
   refreshLayers();
+  refreshStates();
   redrawViz();
 }
 
@@ -221,12 +226,30 @@ function refreshLayers(expandOn = false): void {
     const off = !LAYER_ON[layer](values);
     meta.textContent = off ? 'off' : 'on';
     panel.classList.toggle('off', off);
-    if (expandOn) panel.classList.toggle('collapsed', off);
+    if (expandOn && !NO_FOLD) panel.classList.toggle('collapsed', off);
   }
 }
 
 const panelsEl = $('#panels');
 const layerPanels = new Map<string, { panel: HTMLElement; meta: HTMLElement }>();
+const panelByTitle = new Map<string, HTMLElement>();
+// modules that do nothing right now: dimmed and labelled in the plugin
+const IDLE: Record<string, () => boolean> = {
+  Ensemble: () => values.chMix <= 0, Delay: () => values.dlMix <= 0, Canopy: () => values.rvMix <= 0,
+  Pump: () => values.pumpAmt <= 0, Arp: () => values.arpMode < 0.5,
+};
+function refreshStates(): void {
+  if (!NO_FOLD) return;   // the plugin only: a browser tab keeps its folding and level tags
+  for (const [title, idle] of Object.entries(IDLE)) {
+    const panel = panelByTitle.get(title);
+    if (!panel) continue;
+    const off = idle();
+    panel.classList.toggle('off', off);
+    let tag = panel.querySelector<HTMLElement>(':scope > .head > .state');
+    if (!tag) { tag = document.createElement('span'); tag.className = 'state'; panel.querySelector(':scope > .head')!.append(tag); }
+    tag.textContent = off ? 'off' : '';
+  }
+}
 for (const spec of LAYOUT) {
   const panel = document.createElement('section');
   panel.className = `panel ${spec.cls}`;
@@ -243,7 +266,7 @@ for (const spec of LAYOUT) {
     const meta = document.createElement('span'); meta.className = 'meta';
     head.append(meta);
     head.classList.add('fold');
-    head.addEventListener('click', () => panel.classList.toggle('collapsed'));
+    head.addEventListener('click', () => { if (!NO_FOLD) panel.classList.toggle('collapsed'); });
     layerPanels.set(spec.layer, { panel, meta });
   }
   panel.append(head);
@@ -272,6 +295,7 @@ for (const spec of LAYOUT) {
   }
   panel.append(body);
   panelsEl.append(panel);
+  panelByTitle.set(spec.title, panel);
 }
 
 // ---- families (tabs) -------------------------------------------------------
@@ -374,6 +398,7 @@ function applyValues(next: ParamValues, fromHost = false): void {
   if (!fromHost) synth.loadPreset(values);
   setMaster(values.volume);
   refreshLayers(true);
+  refreshStates();
   redrawViz();
 }
 
@@ -592,6 +617,8 @@ $('#copy').addEventListener('click', async () => {
 
 let startTab = 'voice';
 try { startTab = localStorage.getItem('mycelia.tab') ?? startTab; } catch { /* ignore */ }
+refreshLayers(true);
+refreshStates();
 showTab(TABS.some((t) => t.id === startTab) ? startTab : 'voice');
 
 if (!plugin) {
@@ -630,11 +657,19 @@ if (!plugin) {
 
 // ---- stats -----------------------------------------------------------------
 
+// in the plugin the readout keeps one width however many digits the numbers have (padded, in a fixed box: style.css),
+// and the host's tempo has its own fixed box beside the stop button; a browser tab shows the plain text as before
+const fixedStats = document.documentElement.classList.contains('in-plugin');
+const pad = (n: number, w: number): string => (fixedStats ? String(n).padStart(w, '\u00a0') : String(n));
 const stats = $('#stats');
+const tempo = document.createElement('span');
+tempo.id = 'tempo'; tempo.className = 'muted';
+if (fixedStats) { $('#panic').before(tempo); stats.textContent = `${pad(0, 2)} voices · ${pad(0, 3)}% dsp`; }
 let lastPeak = 0;
 synth.onStats = (s: WorkletStats & { tempo?: number }) => {
-  const host = s.tempo ? ` · ${Math.round(s.tempo)} bpm` : '';
-  stats.textContent = `${s.voices} voices · ${Math.round(s.load * 100)}% dsp${host}`;
+  tempo.textContent = s.tempo ? `${pad(Math.round(s.tempo), 3)} bpm` : '';
+  const host = s.tempo && !fixedStats ? ` · ${Math.round(s.tempo)} bpm` : '';
+  stats.textContent = `${pad(s.voices, 2)} voices · ${pad(Math.round(s.load * 100), 3)}% dsp${host}`;
   const peak = Math.max(s.peakL, s.peakR);
   lastPeak = peak;
   scope.update(s.scope, peak);
@@ -664,6 +699,7 @@ if (plugin) {
       if (id === 'volume') setMaster(v);
     }
     refreshLayers();
+    refreshStates();
     redrawViz();
   };
   // the host's MIDI lights the keys and the network, like a keyboard on the page would
